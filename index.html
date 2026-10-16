@@ -922,7 +922,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 #gj-cloud-bar{background:#e5f3f1;padding:10px 20px;display:none;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px}
 #gj-cloud-bar button{padding:7px 12px}#gj-cloud-bar .muted{margin:0}
 </style>
-<div id="gj-auth-screen"><div class="card"><h2>🔐 Ingresar a GomezJobs Web</h2><p>Ingresá con tu correo y contraseña. Cada cuenta mantiene sus ofertas y preferencias por separado.</p><form id="gj-login-form"><label for="gj-email">Correo electrónico</label><input id="gj-email" type="email" autocomplete="username" required/><label for="gj-password">Contraseña</label><input id="gj-password" type="password" autocomplete="current-password" required/><div class="buttons"><button class="btn" type="submit">Ingresar</button></div></form><p id="gj-auth-status" role="status">Conectando…</p><p class="muted">Las ofertas se comparten mediante Supabase. Los CV de hasta 2 MB se sincronizan entre dispositivos. Los archivos mayores conservan su texto, pero no el archivo original.</p></div></div>
+<div id="gj-auth-screen"><div class="card"><h2>🔐 Ingresar a GomezJobs Web</h2><p>Ingresá con tu correo y contraseña. Cada cuenta mantiene sus ofertas y preferencias por separado.</p><form id="gj-login-form"><label for="gj-email">Correo electrónico</label><input id="gj-email" type="email" autocomplete="username" required/><label for="gj-password">Contraseña</label><input id="gj-password" type="password" autocomplete="current-password" required/><div class="buttons"><button class="btn" type="submit">Ingresar</button><button class="btn secondary" type="button" id="gj-signup">Crear cuenta</button></div></form><p id="gj-auth-status" role="status">Conectando…</p><p class="muted">Las ofertas se comparten mediante Supabase. Los CV de hasta 2 MB se sincronizan entre dispositivos. Los archivos mayores conservan su texto, pero no el archivo original.</p></div></div>
 <div id="gj-cloud-bar"><span id="gj-cloud-status">GomezJobs Web</span><div class="buttons" style="margin:0"><button class="btn secondary" id="gj-refresh" type="button">Actualizar ofertas</button><button class="btn secondary" id="gj-logout" type="button">Cerrar sesión</button></div></div>
 <script>
 /* Perfiles configurables por cuenta, sin valores de ejemplo de otra persona. */
@@ -1020,6 +1020,19 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
  clearJobs=async function(){if(!ready||!confirm('¿Eliminar TODAS tus ofertas guardadas?'))return;const {error}=await client.from('ofertas_laborales').delete().eq('user_id',currentUser.id).gte('id',0);if(error)return alert('No se pudieron eliminar: '+error.message);await refresh()};
  async function setSession(session){ready=!!session;currentUser=session?.user||null;window.gjCurrentUserId=currentUser?.id||null;authScreen.hidden=ready;cloudBar.style.display=ready?'flex':'none';if(ready){cloudStatus.textContent='Mi cuenta: '+session.user.email;restore();cvChoices=JSON.parse(localStorage.getItem(accountChoicesKey())||'{}');await loadCVs();suppressSync=true;try{await readCloud()}finally{suppressSync=false}await refresh()}else{jobs=[];cvEntries=[];cvChoices={};restore();renderCVs();render();say('Ingresá con tu cuenta de GomezJobs.')}}
  document.getElementById('gj-login-form').addEventListener('submit',async ev=>{ev.preventDefault();if(!client)return say('No se cargó la conexión. Comprobá Internet.');say('Ingresando…');const email=document.getElementById('gj-email').value.trim(),password=document.getElementById('gj-password').value;const {data,error}=await client.auth.signInWithPassword({email,password});document.getElementById('gj-password').value='';if(error)return say('No se pudo ingresar: '+error.message);await setSession(data.session)});
+ document.getElementById('gj-signup').onclick=async()=>{
+  if(!client)return say('No se cargó la conexión. Comprobá Internet.');
+  const email=document.getElementById('gj-email').value.trim();
+  const password=document.getElementById('gj-password').value;
+  if(!email||!document.getElementById('gj-email').checkValidity())return say('Ingresá un correo electrónico válido.');
+  if(password.length<6)return say('Para crear tu cuenta, elegí una contraseña de al menos 6 caracteres.');
+  say('Creando tu cuenta…');
+  const {data,error}=await client.auth.signUp({email,password});
+  document.getElementById('gj-password').value='';
+  if(error)return say('No se pudo crear la cuenta: '+error.message);
+  if(data?.session){await setSession(data.session);return;}
+  say('Revisá tu correo electrónico y confirmá tu cuenta desde el enlace que recibiste. Después volvé a GomezJobs e ingresá.');
+ };
  document.getElementById('gj-refresh').onclick=refresh;
  document.getElementById('gj-logout').onclick=async()=>{if(client)await client.auth.signOut();await setSession(null)};
  async function init(){if(!window.supabase?.createClient)return say('No se pudo cargar Supabase. Necesitás conexión a Internet.');client=window.supabase.createClient(URL,KEY);const {data,error}=await client.auth.getSession();if(error)return say('Error de conexión: '+error.message);await setSession(data.session);client.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT')setSession(null)});}
